@@ -37,18 +37,26 @@ namespace CompactStatusSquares
 
         public static void HideLeftoverPanel()
         {
-            if (!Plugin.EnabledIcons.Value || _statusField == null)
+            if (!Plugin.EnabledIcons.Value || _statusField == null || Hud.instance == null)
                 return;
 
             var status = _statusField.GetValue(null);
             if (status == null)
                 return;
 
+            if (status is UnityEngine.Object statusObj && !statusObj)
+                return;
+
             if (_boxField == null)
                 _boxField = AccessTools.Field(status.GetType(), "_box");
 
-            if (_boxField?.GetValue(status) is Component box && box.gameObject.activeSelf)
-                box.gameObject.SetActive(false);
+            var box = _boxField?.GetValue(status) as Component;
+            if (!box)
+                return;
+
+            GameObject go = box.gameObject;
+            if (go != null && go.activeSelf)
+                go.SetActive(false);
         }
     }
 }

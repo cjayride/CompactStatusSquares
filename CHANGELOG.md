@@ -1,3 +1,7 @@
+# 0.1.2
+
+- Stop NullReferenceException spam on logout: SeneaL's status panel is already destroyed while LateUpdate still ran.
+
 # 0.1.1
 
 - Default cluster sits in the top-right with OffsetX -18, OffsetY -18, and IconSize 36.577.

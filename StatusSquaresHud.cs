@@ -50,6 +50,9 @@ namespace CompactStatusSquares
 
         void LateUpdate()
         {
+            if (Hud.instance == null)
+                return;
+
             Nudge();
             SenealStatusGuard.HideLeftoverPanel();
             ApplyVanillaRoot();
