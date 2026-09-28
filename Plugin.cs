@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -41,9 +41,9 @@ namespace CompactStatusSquares
                 "Screen corner the first icon sits in. Extra icons flow away from that corner.");
             OffsetX = Config.Bind("Layout", "OffsetX", -18f,
                 "Horizontal distance from the chosen corner, in pixels. Negative moves left.");
-            OffsetY = Config.Bind("Layout", "OffsetY", -360f,
-                "Vertical distance from the chosen corner, in pixels. Negative moves down. Default sits under a round minimap.");
-            IconSize = Config.Bind("Layout", "IconSize", 36f,
+            OffsetY = Config.Bind("Layout", "OffsetY", -18f,
+                "Vertical distance from the chosen corner, in pixels. Negative moves down.");
+            IconSize = Config.Bind("Layout", "IconSize", 36.577f,
                 new ConfigDescription("Width and height of each square.", new AcceptableValueRange<float>(16f, 96f)));
             Columns = Config.Bind("Layout", "Columns", 1,
                 new ConfigDescription("Icons per row before wrapping. 1 is a vertical stack.", new AcceptableValueRange<int>(1, 16)));
@@ -53,7 +53,7 @@ namespace CompactStatusSquares
                 "Draw the remaining time on the square.");
             CrispPixels = Config.Bind("Layout", "CrispPixels", true,
                 "Point-filter the vanilla icon art so the squares stay sharp instead of soft and blurry.");
-            Background = Config.Bind("Layout", "Background", new Color(0.04f, 0.035f, 0.03f, 0.82f),
+            Background = Config.Bind("Layout", "Background", new Color(10f / 255f, 9f / 255f, 8f / 255f, 209f / 255f),
                 "Color of the square behind each icon.");
 
             _harmony.PatchAll(typeof(VanillaStatusListGuard).Assembly);

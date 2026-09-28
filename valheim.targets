@@ -244,7 +244,7 @@
     <ItemGroup>
       <AllFiles Include="$(TargetDir)**\*.*" Exclude="$(TargetDir)**\*.pdb" />
     </ItemGroup>
-    <Copy Condition="Exists('$(GamePath)\BepInEx\plugins')" SourceFiles="@(AllFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\%(RecursiveDir)"></Copy>
+    <Copy Condition="Exists('$(GamePath)\BepInEx\plugins') AND '$(SkipGameCopy)' != 'true'" SourceFiles="@(AllFiles)" DestinationFolder="$(GamePath)\BepInEx\plugins\%(RecursiveDir)"></Copy>
     <Delete Files="$(ProjectDir)\bin\$(TargetName).zip" />
     <Copy SourceFiles="@(AllFiles)" DestinationFolder="$(TargetDir)..\Release\%(RecursiveDir)"></Copy>
     <ZipDirectory SourceDirectory="$(TargetDir)..\Release" DestinationFile="$(ProjectDir)\bin\$(TargetName).zip" />

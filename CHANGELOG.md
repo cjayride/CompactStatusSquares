@@ -1,3 +1,7 @@
+# 0.1.1
+
+- Default cluster sits in the top-right with OffsetX -18, OffsetY -18, and IconSize 36.577.
+
 # 0.1.0
 
 - Small square status icons using the vanilla effect sprites.
