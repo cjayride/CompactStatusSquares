@@ -1,3 +1,9 @@
+# 0.1.3
+
+- TextScale sizes timers, comfort numbers, names, and the hover tip.
+- ShowName can draw the localized status name Left or Right of the icon (Off by default).
+- UseVanillaFont switches those labels to Valheim's Norse font.
+
 # 0.1.2
 
 - Stop NullReferenceException spam on logout: SeneaL's status panel is already destroyed while LateUpdate still ran.

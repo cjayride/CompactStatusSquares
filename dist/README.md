@@ -30,6 +30,6 @@ Hold **Left Alt** and use the **arrow keys** to move the cluster. Hold **Shift**
 
 `BepInEx/config/cjayride.CompactStatusSquares.cfg`
 
-Size, columns, spacing, corner, timer, and crisp pixels in that file apply immediately.
+Size, text scale, name beside the icon, vanilla font, columns, spacing, corner, timer, and crisp pixels in that file apply immediately.
 
 Turn `[General] Enabled` off to hand the status list back to the game (or to SeneaL, if that mod's status pills are turned on).

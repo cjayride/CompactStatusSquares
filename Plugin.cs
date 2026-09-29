@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.2";
+        public const string Version = "0.1.3";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -25,6 +25,9 @@ namespace CompactStatusSquares
         public static ConfigEntry<int> Columns;
         public static ConfigEntry<float> Spacing;
         public static ConfigEntry<bool> ShowTimer;
+        public static ConfigEntry<float> TextScale;
+        public static ConfigEntry<StatusNameSide> ShowName;
+        public static ConfigEntry<bool> UseVanillaFont;
         public static ConfigEntry<bool> CrispPixels;
         public static ConfigEntry<Color> Background;
 
@@ -50,7 +53,13 @@ namespace CompactStatusSquares
             Spacing = Config.Bind("Layout", "Spacing", 4f,
                 new ConfigDescription("Gap between squares.", new AcceptableValueRange<float>(0f, 32f)));
             ShowTimer = Config.Bind("Layout", "ShowTimer", true,
-                "Draw the remaining time on the square.");
+                "Draw the remaining time or comfort number on the square.");
+            TextScale = Config.Bind("Layout", "TextScale", 1f,
+                new ConfigDescription("Size of timers, comfort numbers, and optional status names. 1 is the original size.", new AcceptableValueRange<float>(0.4f, 3f)));
+            ShowName = Config.Bind("Layout", "ShowName", StatusNameSide.Off,
+                "Draw the localized status name beside the icon. Off keeps the square-only layout.");
+            UseVanillaFont = Config.Bind("Layout", "UseVanillaFont", false,
+                "Use Valheim's Norse font for timers and names. Off uses the compact UI font.");
             CrispPixels = Config.Bind("Layout", "CrispPixels", true,
                 "Point-filter the vanilla icon art so the squares stay sharp instead of soft and blurry.");
             Background = Config.Bind("Layout", "Background", new Color(10f / 255f, 9f / 255f, 8f / 255f, 209f / 255f),
@@ -67,6 +76,13 @@ namespace CompactStatusSquares
             _harmony.UnpatchAll(Guid);
             StatusSquaresHud.RestoreFilteredTextures();
         }
+    }
+
+    public enum StatusNameSide
+    {
+        Off,
+        Left,
+        Right
     }
 
     public enum ScreenCorner

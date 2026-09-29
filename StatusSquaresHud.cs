@@ -9,6 +9,7 @@ namespace CompactStatusSquares
     {
         static readonly Dictionary<Texture, FilterMode> Filtered = new Dictionary<Texture, FilterMode>();
         static Font _font;
+        static Font _norse;
 
         readonly List<StatusEffect> _effects = new List<StatusEffect>(16);
         readonly List<Slot> _slots = new List<Slot>(16);
@@ -93,6 +94,10 @@ namespace CompactStatusSquares
             bool top = corner == ScreenCorner.TopRight || corner == ScreenCorner.TopLeft;
             bool flashOn = Mathf.Sin(Time.time * 10f) > 0f;
             var back = Plugin.Background.Value;
+            _tip.font = CurrentFont();
+            _tip.fontSize = ScaledFont(16f);
+            _hint.font = CurrentFont();
+            _hint.fontSize = ScaledFont(16f);
 
             for (int i = 0; i < _effects.Count; i++)
             {
@@ -124,6 +129,19 @@ namespace CompactStatusSquares
                 slot.Timer.gameObject.SetActive(timer);
                 if (timer)
                     slot.Timer.text = time;
+                ApplyLabel(slot.Timer, true);
+
+                bool named = Plugin.ShowName.Value != StatusNameSide.Off;
+                slot.Name.gameObject.SetActive(named);
+                if (named)
+                {
+                    string label = effect.m_name;
+                    if (Localization.instance != null)
+                        label = Localization.instance.Localize(label);
+                    slot.Name.text = label;
+                    PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
+                    ApplyLabel(slot.Name, false);
+                }
 
                 shown++;
             }
@@ -274,19 +292,39 @@ namespace CompactStatusSquares
             timerRect.sizeDelta = new Vector2(-2f, 14f);
             timerRect.anchoredPosition = new Vector2(0f, 1f);
             var timer = timerGo.AddComponent<Text>();
-            timer.font = _font;
+            timer.font = CurrentFont();
             timer.fontSize = 12;
             timer.alignment = TextAnchor.LowerCenter;
             timer.color = Color.white;
             timer.horizontalOverflow = HorizontalWrapMode.Overflow;
             timer.verticalOverflow = VerticalWrapMode.Overflow;
             timer.raycastTarget = false;
-            timer.resizeTextForBestFit = true;
-            timer.resizeTextMinSize = 8;
-            timer.resizeTextMaxSize = 13;
+            timer.resizeTextForBestFit = false;
             var outline = timerGo.AddComponent<Outline>();
             outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
             outline.effectDistance = new Vector2(1f, -1f);
+
+            var nameGo = new GameObject("name");
+            nameGo.transform.SetParent(go.transform, false);
+            var nameRect = nameGo.AddComponent<RectTransform>();
+            nameRect.anchorMin = new Vector2(1f, 0.5f);
+            nameRect.anchorMax = new Vector2(1f, 0.5f);
+            nameRect.pivot = new Vector2(0f, 0.5f);
+            nameRect.sizeDelta = new Vector2(220f, 24f);
+            nameRect.anchoredPosition = new Vector2(6f, 0f);
+            var name = nameGo.AddComponent<Text>();
+            name.font = CurrentFont();
+            name.fontSize = 12;
+            name.alignment = TextAnchor.MiddleLeft;
+            name.color = Color.white;
+            name.horizontalOverflow = HorizontalWrapMode.Overflow;
+            name.verticalOverflow = VerticalWrapMode.Overflow;
+            name.raycastTarget = false;
+            name.resizeTextForBestFit = false;
+            var nameOutline = nameGo.AddComponent<Outline>();
+            nameOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+            nameOutline.effectDistance = new Vector2(1f, -1f);
+            nameGo.SetActive(false);
 
             var slot = go.AddComponent<Slot>();
             slot.Hud = this;
@@ -294,6 +332,7 @@ namespace CompactStatusSquares
             slot.Back = back;
             slot.Icon = icon;
             slot.Timer = timer;
+            slot.Name = name;
             return slot;
         }
 
@@ -316,8 +355,8 @@ namespace CompactStatusSquares
             textRect.offsetMin = new Vector2(8f, 2f);
             textRect.offsetMax = new Vector2(-8f, -2f);
             _tip = textGo.AddComponent<Text>();
-            _tip.font = _font;
-            _tip.fontSize = 16;
+            _tip.font = CurrentFont();
+            _tip.fontSize = ScaledFont(16f);
             _tip.alignment = TextAnchor.MiddleLeft;
             _tip.color = new Color(0.95f, 0.9f, 0.78f, 1f);
             _tip.raycastTarget = false;
@@ -336,8 +375,8 @@ namespace CompactStatusSquares
             rect.sizeDelta = new Vector2(520f, 28f);
             rect.anchoredPosition = new Vector2(0f, -8f);
             var text = go.AddComponent<Text>();
-            text.font = _font;
-            text.fontSize = 16;
+            text.font = CurrentFont();
+            text.fontSize = ScaledFont(16f);
             text.alignment = TextAnchor.MiddleCenter;
             text.color = new Color(1f, 0.92f, 0.7f, 1f);
             text.raycastTarget = false;
@@ -366,6 +405,85 @@ namespace CompactStatusSquares
                     pair.Key.filterMode = pair.Value;
             }
             Filtered.Clear();
+        }
+
+        static void PlaceName(RectTransform rect, StatusNameSide side)
+        {
+            bool left = side == StatusNameSide.Left;
+            rect.anchorMin = left ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
+            rect.anchorMax = rect.anchorMin;
+            rect.pivot = left ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
+            rect.sizeDelta = new Vector2(260f, Mathf.Max(16f, 20f * Plugin.TextScale.Value));
+            rect.anchoredPosition = new Vector2(left ? -6f : 6f, 0f);
+            var text = rect.GetComponent<Text>();
+            if (text != null)
+                text.alignment = left ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
+        }
+
+        static void ApplyLabel(Text text, bool timer)
+        {
+            if (text == null)
+                return;
+            text.font = CurrentFont();
+            float baseSize = timer ? 12f : 12f;
+            text.fontSize = ScaledFont(baseSize);
+            var rect = text.rectTransform;
+            if (timer)
+            {
+                float h = Mathf.Max(10f, 14f * Plugin.TextScale.Value);
+                rect.sizeDelta = new Vector2(-2f, h);
+            }
+            var outline = text.GetComponent<Outline>();
+            if (outline != null)
+            {
+                float w = Mathf.Clamp(Plugin.TextScale.Value, 0.75f, 2f);
+                outline.effectDistance = new Vector2(w, -w);
+            }
+        }
+
+        static int ScaledFont(float baseSize)
+        {
+            return Mathf.Clamp(Mathf.RoundToInt(baseSize * Plugin.TextScale.Value), 6, 72);
+        }
+
+        static Font CurrentFont()
+        {
+            if (Plugin.UseVanillaFont.Value)
+            {
+                Font norse = Norse();
+                if (norse != null)
+                    return norse;
+            }
+            return _font;
+        }
+
+        static Font Norse()
+        {
+            if (_norse != null)
+                return _norse;
+            var fonts = Resources.FindObjectsOfTypeAll<Font>();
+            for (int i = 0; i < fonts.Length; i++)
+            {
+                var font = fonts[i];
+                if (font == null)
+                    continue;
+                if (font.name.IndexOf("Norsebold", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || font.name.Equals("Norse", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    _norse = font;
+                    return _norse;
+                }
+            }
+            for (int i = 0; i < fonts.Length; i++)
+            {
+                var font = fonts[i];
+                if (font != null && font.name.IndexOf("Norse", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _norse = font;
+                    break;
+                }
+            }
+            return _norse;
         }
 
         static void Place(RectTransform rect, ScreenCorner corner, float x, float y, float size)
@@ -442,6 +560,7 @@ namespace CompactStatusSquares
             public Image Back;
             public Image Icon;
             public Text Timer;
+            public Text Name;
             public StatusEffect Effect;
 
             public void OnPointerEnter(PointerEventData eventData)
