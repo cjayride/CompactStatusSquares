@@ -13,7 +13,7 @@ The test build is already copied into the Gale profiles that have SeneaL UI:
 
 Launch that profile, load a character, and pick up a buff (Rested, a potion, Wet, Cold). The icons should be small squares. SeneaL's pills should not appear, including if `[Elements] StatusEffects` is turned back on.
 
-Hold **Left Alt** and use the **arrow keys** to move the cluster. Hold **Shift** as well for 1-pixel steps. The spot is saved to:
+Move the cluster with `OffsetX` and `OffsetY` in:
 
 `BepInEx/config/cjayride.CompactStatusSquares.cfg`
 

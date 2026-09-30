@@ -26,7 +26,7 @@ Do not copy `manifest.json`, `README.md`, or `icon.png` into the game.
 
 Load a character and pick up a buff (Rested, a potion, Wet, Cold). The icons are small squares. Hover one for its name.
 
-Hold **Left Alt** and use the **arrow keys** to move the cluster. Hold **Shift** as well for 1-pixel steps. The spot is saved to:
+Move the cluster with `OffsetX` and `OffsetY` in:
 
 `BepInEx/config/cjayride.CompactStatusSquares.cfg`
 

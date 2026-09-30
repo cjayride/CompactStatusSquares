@@ -18,12 +18,10 @@ namespace CompactStatusSquares
         RectTransform _root;
         RectTransform _tipRoot;
         Text _tip;
-        Text _hint;
         Sprite _pixel;
         bool _loggedDraw;
         bool _hidVanilla;
         bool _vanillaWasActive;
-        float _nextNudge;
         Slot _hover;
 
         void Awake()
@@ -46,7 +44,6 @@ namespace CompactStatusSquares
 
             _root = Stretch(canvasGo.transform, "icons");
             _tipRoot = MakeTip();
-            _hint = MakeHint();
         }
 
         void LateUpdate()
@@ -54,7 +51,6 @@ namespace CompactStatusSquares
             if (Hud.instance == null)
                 return;
 
-            Nudge();
             SenealStatusGuard.HideLeftoverPanel();
             ApplyVanillaRoot();
 
@@ -96,8 +92,6 @@ namespace CompactStatusSquares
             var back = Plugin.Background.Value;
             _tip.font = CurrentFont();
             _tip.fontSize = ScaledFont(16f);
-            _hint.font = CurrentFont();
-            _hint.fontSize = ScaledFont(16f);
 
             for (int i = 0; i < _effects.Count; i++)
             {
@@ -161,34 +155,6 @@ namespace CompactStatusSquares
             }
 
             UpdateTip();
-        }
-
-        void Nudge()
-        {
-            bool alt = ZInput.GetKey(KeyCode.LeftAlt) || ZInput.GetKey(KeyCode.RightAlt);
-            _hint.gameObject.SetActive(alt && Plugin.EnabledIcons.Value);
-            if (!alt)
-                return;
-
-            _hint.text = "Status squares  x " + Plugin.OffsetX.Value.ToString("0") + "   y " + Plugin.OffsetY.Value.ToString("0");
-            if (Player.m_localPlayer == null || Typing())
-                return;
-
-            float x = 0f;
-            float y = 0f;
-            if (ZInput.GetKey(KeyCode.LeftArrow)) x -= 1f;
-            if (ZInput.GetKey(KeyCode.RightArrow)) x += 1f;
-            if (ZInput.GetKey(KeyCode.DownArrow)) y -= 1f;
-            if (ZInput.GetKey(KeyCode.UpArrow)) y += 1f;
-            if (x == 0f && y == 0f)
-                return;
-            if (Time.unscaledTime < _nextNudge)
-                return;
-
-            _nextNudge = Time.unscaledTime + 0.045f;
-            float step = ZInput.GetKey(KeyCode.LeftShift) || ZInput.GetKey(KeyCode.RightShift) ? 1f : 8f;
-            Plugin.OffsetX.Value += x * step;
-            Plugin.OffsetY.Value += y * step;
         }
 
         void ApplyVanillaRoot()
@@ -364,29 +330,6 @@ namespace CompactStatusSquares
             return rect;
         }
 
-        Text MakeHint()
-        {
-            var go = new GameObject("nudge");
-            go.transform.SetParent(_root, false);
-            var rect = go.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(520f, 28f);
-            rect.anchoredPosition = new Vector2(0f, -8f);
-            var text = go.AddComponent<Text>();
-            text.font = CurrentFont();
-            text.fontSize = ScaledFont(16f);
-            text.alignment = TextAnchor.MiddleCenter;
-            text.color = new Color(1f, 0.92f, 0.7f, 1f);
-            text.raycastTarget = false;
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
-            outline.effectDistance = new Vector2(1f, -1f);
-            go.SetActive(false);
-            return text;
-        }
-
         void ApplyFilter(Sprite sprite)
         {
             if (!Plugin.CrispPixels.Value || sprite == null || sprite.texture == null)
@@ -534,13 +477,6 @@ namespace CompactStatusSquares
         static bool InventoryOpen()
         {
             return InventoryGui.IsVisible();
-        }
-
-        static bool Typing()
-        {
-            if (TextInput.IsVisible() || Console.IsVisible() || Menu.IsVisible())
-                return true;
-            return Chat.instance != null && Chat.instance.HasFocus();
         }
 
         static bool MenuOpen()

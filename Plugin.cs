@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.3";
+        public const string Version = "0.1.4";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -68,7 +68,7 @@ namespace CompactStatusSquares
             _harmony.PatchAll(typeof(VanillaStatusListGuard).Assembly);
             SenealStatusGuard.Patch(_harmony);
             gameObject.AddComponent<StatusSquaresHud>();
-            Log.LogInfo(Name + " " + Version + " loaded. Hold Left Alt and use the arrow keys to move the icons.");
+            Log.LogInfo(Name + " " + Version + " loaded.");
         }
 
         public void OnDestroy()

@@ -1,3 +1,7 @@
+# 0.1.4
+
+- Removed the Alt coordinate overlay and the Alt+arrow nudge. Position stays in the config.
+
 # 0.1.3
 
 - TextScale sizes timers, comfort numbers, names, and the hover tip.
