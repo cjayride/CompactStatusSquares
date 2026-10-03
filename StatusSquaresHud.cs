@@ -10,6 +10,16 @@ namespace CompactStatusSquares
         static readonly Dictionary<Texture, FilterMode> Filtered = new Dictionary<Texture, FilterMode>();
         static Font _font;
         static Font _norse;
+        static readonly string[] PreviewNames = { "Megingjord", "Fire", "Shelter", "Resting Comfort", "Rested" };
+        static readonly string[] PreviewTimes = { "", "", "", "16", "" };
+        static readonly Color[] PreviewTints =
+        {
+            new Color(0.75f, 0.62f, 0.28f),
+            new Color(0.85f, 0.35f, 0.2f),
+            new Color(0.45f, 0.7f, 0.4f),
+            new Color(0.85f, 0.75f, 0.45f),
+            new Color(0.55f, 0.7f, 0.85f)
+        };
 
         readonly List<StatusEffect> _effects = new List<StatusEffect>(16);
         readonly List<Slot> _slots = new List<Slot>(16);
@@ -89,7 +99,6 @@ namespace CompactStatusSquares
             bool right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
             bool top = corner == ScreenCorner.TopRight || corner == ScreenCorner.TopLeft;
             bool flashOn = Mathf.Sin(Time.time * 10f) > 0f;
-            var back = Plugin.Background.Value;
             _tip.font = CurrentFont();
             _tip.fontSize = ScaledFont(16f);
 
@@ -99,45 +108,29 @@ namespace CompactStatusSquares
                 if (effect == null || effect.m_icon == null)
                     continue;
 
-                var slot = SlotAt(shown);
-                slot.Root.gameObject.SetActive(true);
-                slot.Effect = effect;
-                int col = shown % columns;
-                int row = shown / columns;
-                float x = Plugin.OffsetX.Value + (right ? -col * step : col * step);
-                float y = Plugin.OffsetY.Value + (top ? -row * step : row * step);
-                Place(slot.Root, corner, x, y, size);
-
-                slot.Back.color = back;
-                if (slot.Icon.sprite != effect.m_icon)
-                {
-                    slot.Icon.sprite = effect.m_icon;
-                    ApplyFilter(effect.m_icon);
-                }
-                slot.Icon.color = effect.m_flashIcon && flashOn
-                    ? new Color(1f, 0.45f, 0.45f, 1f)
-                    : Color.white;
-
                 string time = effect.GetIconText();
-                bool timer = Plugin.ShowTimer.Value && !string.IsNullOrEmpty(time);
-                slot.Timer.gameObject.SetActive(timer);
-                if (timer)
-                    slot.Timer.text = time;
-                ApplyLabel(slot.Timer, true);
-
-                bool named = Plugin.ShowName.Value != StatusNameSide.Off;
-                slot.Name.gameObject.SetActive(named);
-                if (named)
-                {
-                    string label = effect.m_name;
-                    if (Localization.instance != null)
-                        label = Localization.instance.Localize(label);
-                    slot.Name.text = label;
-                    PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
-                    ApplyLabel(slot.Name, false);
-                }
-
+                string label = effect.m_name;
+                if (Localization.instance != null)
+                    label = Localization.instance.Localize(label);
+                var tint = effect.m_flashIcon && flashOn ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
+                DrawSquare(shown, label, time, effect.m_icon, tint, size, columns, step, corner, right, top);
+                SlotAt(shown).Effect = effect;
+                ApplyFilter(effect.m_icon);
                 shown++;
+            }
+
+            if (Plugin.FillPreview.Value)
+            {
+                int count = Mathf.Max(PreviewNames.Length, columns);
+                int remainder = count % columns;
+                if (remainder != 0)
+                    count += columns - remainder;
+                for (int i = 0; i < count; i++)
+                {
+                    int sample = i % PreviewNames.Length;
+                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], size, columns, step, corner, right, top);
+                    shown++;
+                }
             }
 
             for (int i = shown; i < _slots.Count; i++)
@@ -155,6 +148,38 @@ namespace CompactStatusSquares
             }
 
             UpdateTip();
+        }
+
+        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, float size, int columns, float step, ScreenCorner corner, bool right, bool top)
+        {
+            var slot = SlotAt(index);
+            slot.Root.gameObject.SetActive(true);
+            slot.Effect = null;
+            int col = index % columns;
+            int row = index / columns;
+            float x = Plugin.OffsetX.Value + (right ? -col * step : col * step);
+            float y = Plugin.OffsetY.Value + (top ? -row * step : row * step);
+            Place(slot.Root, corner, x, y, size);
+
+            slot.Back.color = Plugin.Background.Value;
+            if (slot.Icon.sprite != icon)
+                slot.Icon.sprite = icon;
+            slot.Icon.color = tint;
+
+            bool timer = Plugin.ShowTimer.Value && !string.IsNullOrEmpty(time);
+            slot.Timer.gameObject.SetActive(timer);
+            if (timer)
+                slot.Timer.text = time;
+            ApplyLabel(slot.Timer, true);
+
+            bool named = Plugin.ShowName.Value != StatusNameSide.Off;
+            slot.Name.gameObject.SetActive(named);
+            slot.Name.text = label;
+            if (named)
+            {
+                PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
+                ApplyLabel(slot.Name, false);
+            }
         }
 
         void ApplyVanillaRoot()
@@ -185,20 +210,32 @@ namespace CompactStatusSquares
 
         void UpdateTip()
         {
-            if (_hover == null || !_hover.Root.gameObject.activeSelf || _hover.Effect == null)
+            if (_hover == null || !_hover.Root.gameObject.activeSelf || (_hover.Effect == null && string.IsNullOrEmpty(_hover.Name.text)))
             {
                 _tipRoot.gameObject.SetActive(false);
                 return;
             }
 
             var effect = _hover.Effect;
+            if (effect == null)
+            {
+                _tip.text = _hover.Name.text;
+                _tipRoot.gameObject.SetActive(true);
+                PlaceTip();
+                return;
+            }
+
             string name = effect.m_name;
             if (Localization.instance != null)
                 name = Localization.instance.Localize(name);
             string time = effect.GetIconText();
             _tip.text = string.IsNullOrEmpty(time) ? name : name + "   " + time;
             _tipRoot.gameObject.SetActive(true);
+            PlaceTip();
+        }
 
+        void PlaceTip()
+        {
             var corner = Plugin.Corner.Value;
             bool right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
             var slot = _hover.Root;
@@ -357,7 +394,8 @@ namespace CompactStatusSquares
             rect.anchorMax = rect.anchorMin;
             rect.pivot = left ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
             rect.sizeDelta = new Vector2(260f, Mathf.Max(16f, 20f * Plugin.TextScale.Value));
-            rect.anchoredPosition = new Vector2(left ? -6f : 6f, 0f);
+            float gap = Mathf.Max(0f, Plugin.NameGap.Value);
+            rect.anchoredPosition = new Vector2(left ? -gap : gap, 0f);
             var text = rect.GetComponent<Text>();
             if (text != null)
                 text.alignment = left ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;

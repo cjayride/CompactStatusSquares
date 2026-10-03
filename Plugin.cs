@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.4";
+        public const string Version = "0.1.6";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -27,6 +27,8 @@ namespace CompactStatusSquares
         public static ConfigEntry<bool> ShowTimer;
         public static ConfigEntry<float> TextScale;
         public static ConfigEntry<StatusNameSide> ShowName;
+        public static ConfigEntry<float> NameGap;
+        public static ConfigEntry<bool> FillPreview;
         public static ConfigEntry<bool> UseVanillaFont;
         public static ConfigEntry<bool> CrispPixels;
         public static ConfigEntry<Color> Background;
@@ -58,6 +60,10 @@ namespace CompactStatusSquares
                 new ConfigDescription("Size of timers, comfort numbers, and optional status names. 1 is the original size.", new AcceptableValueRange<float>(0.4f, 3f)));
             ShowName = Config.Bind("Layout", "ShowName", StatusNameSide.Off,
                 "Draw the localized status name beside the icon. Off keeps the square-only layout.");
+            NameGap = Config.Bind("Layout", "NameGap", 6f,
+                new ConfigDescription("Pixels between the icon edge and the status name. Raise this if a name covers the comfort number on the square.", new AcceptableValueRange<float>(0f, 120f)));
+            FillPreview = Config.Bind("Layout", "FillPreview", false,
+                "Fill the bar with sample squares, including a comfort number, so the layout can be checked with no status effects. Turn this off when you are done testing.");
             UseVanillaFont = Config.Bind("Layout", "UseVanillaFont", false,
                 "Use Valheim's Norse font for timers and names. Off uses the compact UI font.");
             CrispPixels = Config.Bind("Layout", "CrispPixels", true,

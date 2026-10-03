@@ -1,3 +1,8 @@
+# 0.1.6
+
+- NameGap sets the pixels between the icon and the status name, so the name can clear the comfort number.
+- FillPreview draws sample squares, including Resting Comfort with 16, so the layout can be checked with no status effects. Off by default.
+
 # 0.1.4
 
 - Removed the Alt coordinate overlay and the Alt+arrow nudge. Position stays in the config.
