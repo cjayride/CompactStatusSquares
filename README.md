@@ -17,7 +17,7 @@ Move the cluster with `OffsetX` and `OffsetY` in:
 
 `BepInEx/config/cjayride.CompactStatusSquares.cfg`
 
-Other settings in that file (size, text scale, name beside the icon, vanilla font, columns, spacing, corner, timer, crisp pixels) apply immediately. Hover an icon for its name.
+Other settings in that file (size, text scale, name Left/Right/Top/Bottom of the icon, vanilla font, columns, spacing, corner, timer, crisp pixels) apply immediately. Hover an icon for its name.
 
 Turn `[General] Enabled` off to hand the status list back.
 

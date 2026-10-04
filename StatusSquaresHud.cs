@@ -94,7 +94,8 @@ namespace CompactStatusSquares
             float size = Mathf.Clamp(Plugin.IconSize.Value, 16f, 96f);
             int columns = Mathf.Clamp(Plugin.Columns.Value, 1, 16);
             float gap = Mathf.Max(0f, Plugin.Spacing.Value);
-            float step = size + gap;
+            float stepX = size + gap;
+            float stepY = stepX + NamePitch();
             var corner = Plugin.Corner.Value;
             bool right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
             bool top = corner == ScreenCorner.TopRight || corner == ScreenCorner.TopLeft;
@@ -113,7 +114,7 @@ namespace CompactStatusSquares
                 if (Localization.instance != null)
                     label = Localization.instance.Localize(label);
                 var tint = effect.m_flashIcon && flashOn ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
-                DrawSquare(shown, label, time, effect.m_icon, tint, size, columns, step, corner, right, top);
+                DrawSquare(shown, label, time, effect.m_icon, tint, size, columns, stepX, stepY, corner, right, top);
                 SlotAt(shown).Effect = effect;
                 ApplyFilter(effect.m_icon);
                 shown++;
@@ -128,7 +129,7 @@ namespace CompactStatusSquares
                 for (int i = 0; i < count; i++)
                 {
                     int sample = i % PreviewNames.Length;
-                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], size, columns, step, corner, right, top);
+                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], size, columns, stepX, stepY, corner, right, top);
                     shown++;
                 }
             }
@@ -150,15 +151,15 @@ namespace CompactStatusSquares
             UpdateTip();
         }
 
-        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, float size, int columns, float step, ScreenCorner corner, bool right, bool top)
+        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, float size, int columns, float stepX, float stepY, ScreenCorner corner, bool right, bool top)
         {
             var slot = SlotAt(index);
             slot.Root.gameObject.SetActive(true);
             slot.Effect = null;
             int col = index % columns;
             int row = index / columns;
-            float x = Plugin.OffsetX.Value + (right ? -col * step : col * step);
-            float y = Plugin.OffsetY.Value + (top ? -row * step : row * step);
+            float x = Plugin.OffsetX.Value + (right ? -col * stepX : col * stepX);
+            float y = Plugin.OffsetY.Value + (top ? -row * stepY : row * stepY);
             Place(slot.Root, corner, x, y, size);
 
             slot.Back.color = Plugin.Background.Value;
@@ -389,14 +390,29 @@ namespace CompactStatusSquares
 
         static void PlaceName(RectTransform rect, StatusNameSide side)
         {
+            float gap = Mathf.Max(0f, Plugin.NameGap.Value);
+            float tall = Mathf.Max(16f, 20f * Plugin.TextScale.Value);
+            var text = rect.GetComponent<Text>();
+            if (side == StatusNameSide.Top || side == StatusNameSide.Bottom)
+            {
+                bool top = side == StatusNameSide.Top;
+                float line = NameLine();
+                rect.anchorMin = top ? new Vector2(0.5f, 1f) : new Vector2(0.5f, 0f);
+                rect.anchorMax = rect.anchorMin;
+                rect.pivot = top ? new Vector2(0.5f, 0f) : new Vector2(0.5f, 1f);
+                rect.sizeDelta = new Vector2(260f, line);
+                rect.anchoredPosition = new Vector2(0f, top ? gap : -gap);
+                if (text != null)
+                    text.alignment = top ? TextAnchor.LowerCenter : TextAnchor.UpperCenter;
+                return;
+            }
+
             bool left = side == StatusNameSide.Left;
             rect.anchorMin = left ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
             rect.anchorMax = rect.anchorMin;
             rect.pivot = left ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
-            rect.sizeDelta = new Vector2(260f, Mathf.Max(16f, 20f * Plugin.TextScale.Value));
-            float gap = Mathf.Max(0f, Plugin.NameGap.Value);
+            rect.sizeDelta = new Vector2(260f, tall);
             rect.anchoredPosition = new Vector2(left ? -gap : gap, 0f);
-            var text = rect.GetComponent<Text>();
             if (text != null)
                 text.alignment = left ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
         }
@@ -420,6 +436,19 @@ namespace CompactStatusSquares
                 float w = Mathf.Clamp(Plugin.TextScale.Value, 0.75f, 2f);
                 outline.effectDistance = new Vector2(w, -w);
             }
+        }
+
+        static float NameLine()
+        {
+            return Mathf.Max(10f, ScaledFont(12f) + 2f);
+        }
+
+        static float NamePitch()
+        {
+            var side = Plugin.ShowName.Value;
+            if (side != StatusNameSide.Top && side != StatusNameSide.Bottom)
+                return 0f;
+            return NameLine() + Mathf.Max(0f, Plugin.NameGap.Value);
         }
 
         static int ScaledFont(float baseSize)

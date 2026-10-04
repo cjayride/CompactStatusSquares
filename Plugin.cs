@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.6";
+        public const string Version = "0.1.9";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -52,15 +52,15 @@ namespace CompactStatusSquares
                 new ConfigDescription("Width and height of each square.", new AcceptableValueRange<float>(16f, 96f)));
             Columns = Config.Bind("Layout", "Columns", 1,
                 new ConfigDescription("Icons per row before wrapping. 1 is a vertical stack.", new AcceptableValueRange<int>(1, 16)));
-            Spacing = Config.Bind("Layout", "Spacing", 4f,
+            Spacing = Config.Bind("Layout", "Spacing", 5.616f,
                 new ConfigDescription("Gap between squares.", new AcceptableValueRange<float>(0f, 32f)));
             ShowTimer = Config.Bind("Layout", "ShowTimer", true,
                 "Draw the remaining time or comfort number on the square.");
-            TextScale = Config.Bind("Layout", "TextScale", 1f,
+            TextScale = Config.Bind("Layout", "TextScale", 0.83f,
                 new ConfigDescription("Size of timers, comfort numbers, and optional status names. 1 is the original size.", new AcceptableValueRange<float>(0.4f, 3f)));
-            ShowName = Config.Bind("Layout", "ShowName", StatusNameSide.Off,
-                "Draw the localized status name beside the icon. Off keeps the square-only layout.");
-            NameGap = Config.Bind("Layout", "NameGap", 6f,
+            ShowName = Config.Bind("Layout", "ShowName", StatusNameSide.Bottom,
+                "Draw the localized status name next to the icon: Off, Left, Right, Top, or Bottom.");
+            NameGap = Config.Bind("Layout", "NameGap", 1.731f,
                 new ConfigDescription("Pixels between the icon edge and the status name. Raise this if a name covers the comfort number on the square.", new AcceptableValueRange<float>(0f, 120f)));
             FillPreview = Config.Bind("Layout", "FillPreview", false,
                 "Fill the bar with sample squares, including a comfort number, so the layout can be checked with no status effects. Turn this off when you are done testing.");
@@ -88,7 +88,9 @@ namespace CompactStatusSquares
     {
         Off,
         Left,
-        Right
+        Right,
+        Top,
+        Bottom
     }
 
     public enum ScreenCorner

@@ -1,3 +1,16 @@
+# 0.1.9
+
+- Defaults: NameGap 1.731, Spacing 5.616, ShowName Bottom, TextScale 0.83.
+
+# 0.1.8
+
+- A name above or below an icon sits on the icon edge, and the next icon starts under that line.
+- Defaults: ShowName Bottom, NameGap 0, TextScale 0.83, Spacing 11.
+
+# 0.1.7
+
+- ShowName can also place the status name Top or Bottom of the icon.
+
 # 0.1.6
 
 - NameGap sets the pixels between the icon and the status name, so the name can clear the comfort number.
