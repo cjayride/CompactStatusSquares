@@ -1,16 +1,18 @@
 # Compact Status Squares
 
-Small square buff and debuff icons for Valheim, drawn with the game's own effect art. The cluster sits in a screen corner you choose, and you can nudge it in game.
+Small square buff and debuff icons for Valheim, drawn with the game's own effect art. The cluster sits in a screen corner you choose.
 
 Made to live next to [SeneaL UI](https://thunderstore.io/c/valheim/p/seneaL/SeneaL_UI/). SeneaL UI skips the game's status list whenever its interface is on, even if its own status pills are switched off. This mod draws the icons itself and keeps that status slot, so SeneaL's pills stay hidden. The rest of SeneaL UI is left alone.
 
 **Client only.** The dedicated server does not need this mod.
 
+Tested on **Valheim 1.0.21**.
+
 Do not run this together with another mod that also replaces the status-effect HUD.
 
 ## Install
 
-Requires [BepInExPack for Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/).
+Requires [BepInExPack for Valheim 5.4.2360](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/).
 
 **Thunderstore, Gale, or r2modman:** install the package. The DLL lands in `BepInEx/plugins/cjayride-CompactStatusSquares/`.
 

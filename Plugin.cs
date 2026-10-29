@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.9";
+        public const string Version = "0.1.10";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
