@@ -1,3 +1,8 @@
+# 0.1.11
+
+- Re-checked against Valheim 1.0.21 (`Hud.UpdateStatusEffects`, `SEMan.GetHUDStatusEffects`, `StatusEffect.GetIconText`).
+- Cut per-frame HUD work: cache layout/fonts, skip unchanged squares, localize names once, and stop reflecting into SeneaL UI every frame.
+
 # 0.1.10
 
 - Verified against Valheim 1.0.21 (Release build).

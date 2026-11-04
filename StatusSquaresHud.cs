@@ -8,6 +8,7 @@ namespace CompactStatusSquares
     public class StatusSquaresHud : MonoBehaviour
     {
         static readonly Dictionary<Texture, FilterMode> Filtered = new Dictionary<Texture, FilterMode>();
+        static readonly Dictionary<string, string> Localized = new Dictionary<string, string>();
         static Font _font;
         static Font _norse;
         static readonly string[] PreviewNames = { "Megingjord", "Fire", "Shelter", "Resting Comfort", "Rested" };
@@ -32,7 +33,28 @@ namespace CompactStatusSquares
         bool _loggedDraw;
         bool _hidVanilla;
         bool _vanillaWasActive;
+        bool _configDirty = true;
+        bool _layoutDirty = true;
+        bool _wasShown = true;
+        bool _lastFlash;
+        int _lastShown = -1;
+        float _size;
+        int _columns;
+        float _stepX;
+        float _stepY;
+        ScreenCorner _corner;
+        bool _right;
+        bool _top;
+        Color _backColor;
+        Font _cachedFont;
+        int _timerFontSize;
+        int _nameFontSize;
+        int _tipFontSize;
+        Vector2 _timerOutline;
+        Vector2 _nameOutline;
+        float _timerHeight;
         Slot _hover;
+        string _tipText;
 
         void Awake()
         {
@@ -46,6 +68,7 @@ namespace CompactStatusSquares
             _canvas = canvasGo.AddComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _canvas.sortingOrder = 450;
+            _canvas.enabled = false;
             var scaler = canvasGo.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920f, 1080f);
@@ -54,6 +77,23 @@ namespace CompactStatusSquares
 
             _root = Stretch(canvasGo.transform, "icons");
             _tipRoot = MakeTip();
+
+            if (Plugin.Instance != null)
+                Plugin.Instance.Config.SettingChanged += OnConfigChanged;
+        }
+
+        void OnDestroy()
+        {
+            if (Plugin.Instance != null)
+                Plugin.Instance.Config.SettingChanged -= OnConfigChanged;
+        }
+
+        void OnConfigChanged(object sender, System.EventArgs e)
+        {
+            _configDirty = true;
+            _layoutDirty = true;
+            Localized.Clear();
+            SenealStatusGuard.ForgetBox();
         }
 
         void LateUpdate()
@@ -67,22 +107,31 @@ namespace CompactStatusSquares
             var player = Player.m_localPlayer;
             bool show = Plugin.EnabledIcons.Value
                 && player != null
-                && Hud.instance != null
                 && Hud.instance.IsVisible()
-                && !MapOpen()
-                && !InventoryOpen()
-                && !MenuOpen()
-                && !ConsoleOpen()
+                && !Minimap.IsOpen()
+                && !InventoryGui.IsVisible()
+                && !Menu.IsVisible()
+                && !Console.IsVisible()
                 && !player.IsDead();
 
             if (!show)
             {
-                _canvas.enabled = false;
-                SetHover(null);
+                if (_wasShown)
+                {
+                    _canvas.enabled = false;
+                    SetHover(null);
+                    _wasShown = false;
+                }
                 return;
             }
 
-            _canvas.enabled = true;
+            if (!_wasShown)
+            {
+                _canvas.enabled = true;
+                _wasShown = true;
+                _layoutDirty = true;
+            }
+
             _effects.Clear();
             player.GetSEMan().GetHUDStatusEffects(_effects);
             Layout();
@@ -90,31 +139,27 @@ namespace CompactStatusSquares
 
         void Layout()
         {
-            int shown = 0;
-            float size = Mathf.Clamp(Plugin.IconSize.Value, 16f, 96f);
-            int columns = Mathf.Clamp(Plugin.Columns.Value, 1, 16);
-            float gap = Mathf.Max(0f, Plugin.Spacing.Value);
-            float stepX = size + gap;
-            float stepY = stepX + NamePitch();
-            var corner = Plugin.Corner.Value;
-            bool right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
-            bool top = corner == ScreenCorner.TopRight || corner == ScreenCorner.TopLeft;
-            bool flashOn = Mathf.Sin(Time.time * 10f) > 0f;
-            _tip.font = CurrentFont();
-            _tip.fontSize = ScaledFont(16f);
+            if (_configDirty)
+                RefreshLayoutCache();
 
+            bool flashOn = ((int)(Time.unscaledTime * 5f) & 1) == 1;
+            if (flashOn != _lastFlash)
+            {
+                _lastFlash = flashOn;
+                _layoutDirty = true;
+            }
+
+            int shown = 0;
             for (int i = 0; i < _effects.Count; i++)
             {
                 var effect = _effects[i];
                 if (effect == null || effect.m_icon == null)
                     continue;
 
-                string time = effect.GetIconText();
-                string label = effect.m_name;
-                if (Localization.instance != null)
-                    label = Localization.instance.Localize(label);
+                string time = Plugin.ShowTimer.Value ? effect.GetIconText() : null;
+                string label = LocalName(effect.m_name);
                 var tint = effect.m_flashIcon && flashOn ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
-                DrawSquare(shown, label, time, effect.m_icon, tint, size, columns, stepX, stepY, corner, right, top);
+                DrawSquare(shown, label, time, effect.m_icon, tint, _layoutDirty);
                 SlotAt(shown).Effect = effect;
                 ApplyFilter(effect.m_icon);
                 shown++;
@@ -122,24 +167,28 @@ namespace CompactStatusSquares
 
             if (Plugin.FillPreview.Value)
             {
-                int count = Mathf.Max(PreviewNames.Length, columns);
-                int remainder = count % columns;
+                int count = Mathf.Max(PreviewNames.Length, _columns);
+                int remainder = count % _columns;
                 if (remainder != 0)
-                    count += columns - remainder;
+                    count += _columns - remainder;
                 for (int i = 0; i < count; i++)
                 {
                     int sample = i % PreviewNames.Length;
-                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], size, columns, stepX, stepY, corner, right, top);
+                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], _layoutDirty);
                     shown++;
                 }
             }
 
-            for (int i = shown; i < _slots.Count; i++)
+            if (shown != _lastShown || _layoutDirty)
             {
-                if (_slots[i].Root.gameObject.activeSelf)
-                    _slots[i].Root.gameObject.SetActive(false);
-                if (_hover == _slots[i])
-                    SetHover(null);
+                for (int i = shown; i < _slots.Count; i++)
+                {
+                    if (_slots[i].Root.gameObject.activeSelf)
+                        _slots[i].Root.gameObject.SetActive(false);
+                    if (_hover == _slots[i])
+                        SetHover(null);
+                }
+                _lastShown = shown;
             }
 
             if (shown > 0 && !_loggedDraw)
@@ -148,39 +197,77 @@ namespace CompactStatusSquares
                 Plugin.Log.LogInfo("Drawing " + shown + " status icon" + (shown == 1 ? "" : "s") + ".");
             }
 
+            _layoutDirty = false;
             UpdateTip();
         }
 
-        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, float size, int columns, float stepX, float stepY, ScreenCorner corner, bool right, bool top)
+        void RefreshLayoutCache()
+        {
+            _size = Mathf.Clamp(Plugin.IconSize.Value, 16f, 96f);
+            _columns = Mathf.Clamp(Plugin.Columns.Value, 1, 16);
+            float gap = Mathf.Max(0f, Plugin.Spacing.Value);
+            _stepX = _size + gap;
+            _stepY = _stepX + NamePitch();
+            _corner = Plugin.Corner.Value;
+            _right = _corner == ScreenCorner.TopRight || _corner == ScreenCorner.BottomRight;
+            _top = _corner == ScreenCorner.TopRight || _corner == ScreenCorner.TopLeft;
+            _backColor = Plugin.Background.Value;
+            _cachedFont = CurrentFont();
+            _timerFontSize = ScaledFont(12f);
+            _nameFontSize = ScaledFont(12f);
+            _tipFontSize = ScaledFont(16f);
+            float outline = Mathf.Clamp(Plugin.TextScale.Value, 0.75f, 2f);
+            _timerOutline = new Vector2(outline, -outline);
+            _nameOutline = _timerOutline;
+            _timerHeight = Mathf.Max(10f, 14f * Plugin.TextScale.Value);
+            _tip.font = _cachedFont;
+            _tip.fontSize = _tipFontSize;
+            _configDirty = false;
+            _layoutDirty = true;
+        }
+
+        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, bool force)
         {
             var slot = SlotAt(index);
-            slot.Root.gameObject.SetActive(true);
-            slot.Effect = null;
-            int col = index % columns;
-            int row = index / columns;
-            float x = Plugin.OffsetX.Value + (right ? -col * stepX : col * stepX);
-            float y = Plugin.OffsetY.Value + (top ? -row * stepY : row * stepY);
-            Place(slot.Root, corner, x, y, size);
+            if (!slot.Root.gameObject.activeSelf)
+            {
+                slot.Root.gameObject.SetActive(true);
+                force = true;
+            }
 
-            slot.Back.color = Plugin.Background.Value;
+            slot.Effect = null;
+            if (force)
+            {
+                int col = index % _columns;
+                int row = index / _columns;
+                float x = Plugin.OffsetX.Value + (_right ? -col * _stepX : col * _stepX);
+                float y = Plugin.OffsetY.Value + (_top ? -row * _stepY : row * _stepY);
+                Place(slot.Root, _corner, x, y, _size);
+                slot.Back.color = _backColor;
+                ApplyLabel(slot, true);
+                bool named = Plugin.ShowName.Value != StatusNameSide.Off;
+                if (slot.Name.gameObject.activeSelf != named)
+                    slot.Name.gameObject.SetActive(named);
+                if (named)
+                {
+                    PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
+                    ApplyLabel(slot, false);
+                }
+            }
+
             if (slot.Icon.sprite != icon)
                 slot.Icon.sprite = icon;
-            slot.Icon.color = tint;
+            if (slot.Icon.color != tint)
+                slot.Icon.color = tint;
 
             bool timer = Plugin.ShowTimer.Value && !string.IsNullOrEmpty(time);
-            slot.Timer.gameObject.SetActive(timer);
-            if (timer)
+            if (slot.Timer.gameObject.activeSelf != timer)
+                slot.Timer.gameObject.SetActive(timer);
+            if (timer && slot.Timer.text != time)
                 slot.Timer.text = time;
-            ApplyLabel(slot.Timer, true);
 
-            bool named = Plugin.ShowName.Value != StatusNameSide.Off;
-            slot.Name.gameObject.SetActive(named);
-            slot.Name.text = label;
-            if (named)
-            {
-                PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
-                ApplyLabel(slot.Name, false);
-            }
+            if (slot.Name.text != label)
+                slot.Name.text = label;
         }
 
         void ApplyVanillaRoot()
@@ -213,50 +300,59 @@ namespace CompactStatusSquares
         {
             if (_hover == null || !_hover.Root.gameObject.activeSelf || (_hover.Effect == null && string.IsNullOrEmpty(_hover.Name.text)))
             {
-                _tipRoot.gameObject.SetActive(false);
+                if (_tipRoot.gameObject.activeSelf)
+                    _tipRoot.gameObject.SetActive(false);
                 return;
             }
 
             var effect = _hover.Effect;
+            string text;
             if (effect == null)
             {
-                _tip.text = _hover.Name.text;
-                _tipRoot.gameObject.SetActive(true);
-                PlaceTip();
-                return;
+                text = _hover.Name.text;
+            }
+            else
+            {
+                string name = LocalName(effect.m_name);
+                string time = effect.GetIconText();
+                text = string.IsNullOrEmpty(time) ? name : name + "   " + time;
             }
 
-            string name = effect.m_name;
-            if (Localization.instance != null)
-                name = Localization.instance.Localize(name);
-            string time = effect.GetIconText();
-            _tip.text = string.IsNullOrEmpty(time) ? name : name + "   " + time;
-            _tipRoot.gameObject.SetActive(true);
+            if (!_tipRoot.gameObject.activeSelf)
+                _tipRoot.gameObject.SetActive(true);
+            if (_tipText != text)
+            {
+                _tipText = text;
+                _tip.text = text;
+            }
             PlaceTip();
         }
 
         void PlaceTip()
         {
-            var corner = Plugin.Corner.Value;
-            bool right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
             var slot = _hover.Root;
             _tipRoot.anchorMin = slot.anchorMin;
             _tipRoot.anchorMax = slot.anchorMax;
-            _tipRoot.pivot = new Vector2(right ? 1f : 0f, slot.pivot.y);
-            float size = Mathf.Clamp(Plugin.IconSize.Value, 16f, 96f);
-            _tipRoot.anchoredPosition = slot.anchoredPosition + new Vector2(right ? -(size + 8f) : size + 8f, 0f);
+            _tipRoot.pivot = new Vector2(_right ? 1f : 0f, slot.pivot.y);
+            _tipRoot.anchoredPosition = slot.anchoredPosition + new Vector2(_right ? -(_size + 8f) : _size + 8f, 0f);
             _tipRoot.sizeDelta = new Vector2(Mathf.Clamp(_tip.text.Length * 9f + 20f, 80f, 460f), 28f);
         }
 
         public void SetHover(Slot slot)
         {
+            if (_hover == slot)
+                return;
             _hover = slot;
+            _tipText = null;
         }
 
         public void ClearHover(Slot slot)
         {
             if (_hover == slot)
+            {
                 _hover = null;
+                _tipText = null;
+            }
         }
 
         Slot SlotAt(int index)
@@ -337,6 +433,8 @@ namespace CompactStatusSquares
             slot.Icon = icon;
             slot.Timer = timer;
             slot.Name = name;
+            slot.TimerOutline = outline;
+            slot.NameOutline = nameOutline;
             return slot;
         }
 
@@ -373,8 +471,9 @@ namespace CompactStatusSquares
             if (!Plugin.CrispPixels.Value || sprite == null || sprite.texture == null)
                 return;
             var tex = sprite.texture;
-            if (!Filtered.ContainsKey(tex))
-                Filtered[tex] = tex.filterMode;
+            if (Filtered.ContainsKey(tex))
+                return;
+            Filtered[tex] = tex.filterMode;
             tex.filterMode = FilterMode.Point;
         }
 
@@ -386,6 +485,17 @@ namespace CompactStatusSquares
                     pair.Key.filterMode = pair.Value;
             }
             Filtered.Clear();
+        }
+
+        static string LocalName(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+                return key;
+            if (Localized.TryGetValue(key, out string cached))
+                return cached;
+            string value = Localization.instance != null ? Localization.instance.Localize(key) : key;
+            Localized[key] = value;
+            return value;
         }
 
         static void PlaceName(RectTransform rect, StatusNameSide side)
@@ -417,25 +527,20 @@ namespace CompactStatusSquares
                 text.alignment = left ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
         }
 
-        static void ApplyLabel(Text text, bool timer)
+        void ApplyLabel(Slot slot, bool timer)
         {
-            if (text == null)
-                return;
-            text.font = CurrentFont();
-            float baseSize = timer ? 12f : 12f;
-            text.fontSize = ScaledFont(baseSize);
-            var rect = text.rectTransform;
             if (timer)
             {
-                float h = Mathf.Max(10f, 14f * Plugin.TextScale.Value);
-                rect.sizeDelta = new Vector2(-2f, h);
+                slot.Timer.font = _cachedFont;
+                slot.Timer.fontSize = _timerFontSize;
+                slot.Timer.rectTransform.sizeDelta = new Vector2(-2f, _timerHeight);
+                slot.TimerOutline.effectDistance = _timerOutline;
+                return;
             }
-            var outline = text.GetComponent<Outline>();
-            if (outline != null)
-            {
-                float w = Mathf.Clamp(Plugin.TextScale.Value, 0.75f, 2f);
-                outline.effectDistance = new Vector2(w, -w);
-            }
+
+            slot.Name.font = _cachedFont;
+            slot.Name.fontSize = _nameFontSize;
+            slot.NameOutline.effectDistance = _nameOutline;
         }
 
         static float NameLine()
@@ -536,26 +641,6 @@ namespace CompactStatusSquares
             return sprite;
         }
 
-        static bool MapOpen()
-        {
-            return Minimap.IsOpen();
-        }
-
-        static bool InventoryOpen()
-        {
-            return InventoryGui.IsVisible();
-        }
-
-        static bool MenuOpen()
-        {
-            return Menu.IsVisible();
-        }
-
-        static bool ConsoleOpen()
-        {
-            return Console.IsVisible();
-        }
-
         public class Slot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         {
             public StatusSquaresHud Hud;
@@ -564,6 +649,8 @@ namespace CompactStatusSquares
             public Image Icon;
             public Text Timer;
             public Text Name;
+            public Outline TimerOutline;
+            public Outline NameOutline;
             public StatusEffect Effect;
 
             public void OnPointerEnter(PointerEventData eventData)

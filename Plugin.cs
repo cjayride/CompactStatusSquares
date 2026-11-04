@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.1.10";
+        public const string Version = "0.1.11";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -71,7 +71,7 @@ namespace CompactStatusSquares
             Background = Config.Bind("Layout", "Background", new Color(10f / 255f, 9f / 255f, 8f / 255f, 209f / 255f),
                 "Color of the square behind each icon.");
 
-            _harmony.PatchAll(typeof(VanillaStatusListGuard).Assembly);
+            _harmony.PatchAll(typeof(VanillaStatusListGuard));
             SenealStatusGuard.Patch(_harmony);
             gameObject.AddComponent<StatusSquaresHud>();
             Log.LogInfo(Name + " " + Version + " loaded.");

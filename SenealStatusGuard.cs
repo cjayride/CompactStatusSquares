@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -14,6 +13,8 @@ namespace CompactStatusSquares
     {
         static FieldInfo _statusField;
         static FieldInfo _boxField;
+        static GameObject _box;
+        static float _nextScan;
 
         public static void Patch(Harmony harmony)
         {
@@ -40,6 +41,17 @@ namespace CompactStatusSquares
             if (!Plugin.EnabledIcons.Value || _statusField == null || Hud.instance == null)
                 return;
 
+            if (_box)
+            {
+                if (_box.activeSelf)
+                    _box.SetActive(false);
+                return;
+            }
+
+            if (Time.unscaledTime < _nextScan)
+                return;
+            _nextScan = Time.unscaledTime + 2f;
+
             var status = _statusField.GetValue(null);
             if (status == null)
                 return;
@@ -54,9 +66,15 @@ namespace CompactStatusSquares
             if (!box)
                 return;
 
-            GameObject go = box.gameObject;
-            if (go != null && go.activeSelf)
-                go.SetActive(false);
+            _box = box.gameObject;
+            if (_box != null && _box.activeSelf)
+                _box.SetActive(false);
+        }
+
+        public static void ForgetBox()
+        {
+            _box = null;
+            _nextScan = 0f;
         }
     }
 }
