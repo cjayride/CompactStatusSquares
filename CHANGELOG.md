@@ -1,3 +1,7 @@
+# 0.2.1
+
+- Default `IconSize` is now 50 (fresh configs only; existing `IconSize` in your cfg file is unchanged).
+
 # 0.2.0
 
 - **Release for Valheim 1.0.21 (Unity 6):** status squares draw with OnGUI in screen pixels. Unity UI on the game HUD was invisible in practice; SeneaL UI is optional, not required.

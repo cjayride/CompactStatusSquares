@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.2.0";
+        public const string Version = "0.2.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
@@ -48,7 +48,7 @@ namespace CompactStatusSquares
                 "Horizontal distance from the chosen corner, in pixels. Negative moves left.");
             OffsetY = Config.Bind("Layout", "OffsetY", -18f,
                 "Vertical distance from the chosen corner, in pixels. Negative moves down.");
-            IconSize = Config.Bind("Layout", "IconSize", 36.577f,
+            IconSize = Config.Bind("Layout", "IconSize", 50f,
                 new ConfigDescription("Width and height of each square.", new AcceptableValueRange<float>(16f, 96f)));
             Columns = Config.Bind("Layout", "Columns", 1,
                 new ConfigDescription("Icons per row before wrapping. 1 is a vertical stack.", new AcceptableValueRange<int>(1, 16)));
