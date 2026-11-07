@@ -4,7 +4,7 @@
 
 Compact Status Squares displays Valheim's own status-effect artwork as small square icons, giving you a cleaner HUD without the large vanilla status list.
 
-Designed to work alongside [SeneaL UI](https://thunderstore.io/c/valheim/p/seneaL/SeneaL_UI/), this mod takes control of the status-effect HUD slot while leaving the rest of SeneaL UI untouched.
+Works on its own on Valheim **1.0.21**. **SeneaL UI** is optional: when installed, this mod still takes the status-effect slot and keeps SeneaL's pills from overlapping the squares.
 
 ## ✨ Features
 

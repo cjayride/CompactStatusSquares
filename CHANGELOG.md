@@ -1,3 +1,26 @@
+# 0.2.0
+
+- **Release for Valheim 1.0.21 (Unity 6):** status squares draw with OnGUI in screen pixels. Unity UI on the game HUD was invisible in practice; SeneaL UI is optional, not required.
+- Lighter HUD path: no per-label Outline meshes, no extra overlay canvas, SeneaL scans only when SeneaL is installed.
+- Startup logs explain when squares are hidden (no player, HUD toggled off, no buffs, and so on).
+
+# 0.1.15
+
+- Draw status squares with OnGUI in screen pixels. Valheim 1.0.21's HUD canvas was swallowing the Unity UI layer, so icons could log as drawn and still be invisible.
+- Log the first reason squares are skipped (disabled, no player, HUD hidden, no effects, no icons).
+
+# 0.1.14
+
+- Squares now stretch across Valheim's HUD canvas, so they sit in the chosen screen corner instead of a 100x100 box in the middle of the HUD.
+- Dropped Unity UI Outline and stopped rebuilding layout five times a second, which was hammering FPS.
+- Skip SeneaL leftover scans when that mod is not installed. Show squares whenever the vanilla HUD is visible.
+
+# 0.1.13
+
+- Parent the squares under Valheim's own HUD root instead of a separate overlay canvas, so they render on Valheim 1.0.21 / Unity 6 without SeneaL UI.
+- Track slot placement explicitly so recreated HUD layers still position every square.
+- Log once when the game reports HUD effects but none have icons to draw.
+
 # 0.1.12
 
 - New status squares stay hidden until they are placed in the list, so they no longer flash at a default screen position when an effect is applied.

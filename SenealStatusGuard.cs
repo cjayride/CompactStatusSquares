@@ -11,6 +11,8 @@ namespace CompactStatusSquares
     /// </summary>
     static class SenealStatusGuard
     {
+        public static bool Installed { get; private set; }
+
         static FieldInfo _statusField;
         static FieldInfo _boxField;
         static GameObject _box;
@@ -26,6 +28,7 @@ namespace CompactStatusSquares
                 return;
             }
 
+            Installed = true;
             harmony.Patch(tick, prefix: new HarmonyMethod(typeof(SenealStatusGuard), nameof(BlockTick)));
             _statusField = AccessTools.Field(AccessTools.TypeByName("SeneaLUI.Hud.HudRoot"), "_status");
             Plugin.Log.LogInfo("SeneaL UI status pills blocked. Compact Status Squares owns that slot.");

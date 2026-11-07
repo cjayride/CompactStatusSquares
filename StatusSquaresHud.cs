@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace CompactStatusSquares
 {
@@ -9,8 +7,6 @@ namespace CompactStatusSquares
     {
         static readonly Dictionary<Texture, FilterMode> Filtered = new Dictionary<Texture, FilterMode>();
         static readonly Dictionary<string, string> Localized = new Dictionary<string, string>();
-        static Font _font;
-        static Font _norse;
         static readonly string[] PreviewNames = { "Megingjord", "Fire", "Shelter", "Resting Comfort", "Rested" };
         static readonly string[] PreviewTimes = { "", "", "", "16", "" };
         static readonly Color[] PreviewTints =
@@ -23,61 +19,38 @@ namespace CompactStatusSquares
         };
 
         readonly List<StatusEffect> _effects = new List<StatusEffect>(16);
-        readonly List<Slot> _slots = new List<Slot>(16);
-
-        Canvas _canvas;
-        RectTransform _root;
-        RectTransform _tipRoot;
-        Text _tip;
-        Sprite _pixel;
-        bool _loggedDraw;
+        readonly List<DrawItem> _draw = new List<DrawItem>(16);
+        Texture2D _pixel;
+        GUIStyle _label;
+        GUIStyle _tipStyle;
         bool _hidVanilla;
         bool _vanillaWasActive;
-        bool _configDirty = true;
-        bool _layoutDirty = true;
-        bool _wasShown = true;
-        bool _lastFlash;
-        int _lastShown = -1;
+        bool _loggedDraw;
+        string _skip;
+        string _lastSkip;
+        string _hover;
         float _size;
         int _columns;
         float _stepX;
         float _stepY;
-        ScreenCorner _corner;
         bool _right;
         bool _top;
         Color _backColor;
-        Font _cachedFont;
-        int _timerFontSize;
-        int _nameFontSize;
-        int _tipFontSize;
-        Vector2 _timerOutline;
-        Vector2 _nameOutline;
-        float _timerHeight;
-        Slot _hover;
-        string _tipText;
+
+        struct DrawItem
+        {
+            public string Name;
+            public string Time;
+            public Sprite Icon;
+            public Color Tint;
+        }
 
         void Awake()
         {
-            _pixel = Pixel();
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (_font == null)
-                _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-
-            var canvasGo = new GameObject("CompactStatusSquares");
-            canvasGo.transform.SetParent(transform, false);
-            _canvas = canvasGo.AddComponent<Canvas>();
-            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            _canvas.sortingOrder = 450;
-            _canvas.enabled = false;
-            var scaler = canvasGo.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasGo.AddComponent<GraphicRaycaster>();
-
-            _root = Stretch(canvasGo.transform, "icons");
-            _tipRoot = MakeTip();
-
+            _pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            _pixel.SetPixel(0, 0, Color.white);
+            _pixel.Apply();
+            _pixel.hideFlags = HideFlags.HideAndDontSave;
             if (Plugin.Instance != null)
                 Plugin.Instance.Config.SettingChanged += OnConfigChanged;
         }
@@ -90,79 +63,43 @@ namespace CompactStatusSquares
 
         void OnConfigChanged(object sender, System.EventArgs e)
         {
-            _configDirty = true;
-            _layoutDirty = true;
             Localized.Clear();
+            _loggedDraw = false;
+            _lastSkip = null;
             SenealStatusGuard.ForgetBox();
         }
 
         void LateUpdate()
         {
-            if (Hud.instance == null)
-                return;
-
-            SenealStatusGuard.HideLeftoverPanel();
             ApplyVanillaRoot();
+            if (SenealStatusGuard.Installed)
+                SenealStatusGuard.HideLeftoverPanel();
 
-            var player = Player.m_localPlayer;
-            bool show = Plugin.EnabledIcons.Value
-                && player != null
-                && Hud.instance.IsVisible()
-                && !Minimap.IsOpen()
-                && !InventoryGui.IsVisible()
-                && !Menu.IsVisible()
-                && !Console.IsVisible()
-                && !player.IsDead();
-
-            if (!show)
+            _draw.Clear();
+            _skip = WhyHidden();
+            if (_skip != null)
             {
-                if (_wasShown)
-                {
-                    _canvas.enabled = false;
-                    SetHover(null);
-                    _wasShown = false;
-                }
+                LogSkip(_skip);
                 return;
             }
 
-            if (!_wasShown)
-            {
-                _canvas.enabled = true;
-                _wasShown = true;
-                _layoutDirty = true;
-            }
-
-            _effects.Clear();
-            player.GetSEMan().GetHUDStatusEffects(_effects);
-            Layout();
-        }
-
-        void Layout()
-        {
-            if (_configDirty)
-                RefreshLayoutCache();
-
+            RefreshLayoutCache();
             bool flashOn = ((int)(Time.unscaledTime * 5f) & 1) == 1;
-            if (flashOn != _lastFlash)
-            {
-                _lastFlash = flashOn;
-                _layoutDirty = true;
-            }
-
-            int shown = 0;
+            _effects.Clear();
+            Player.m_localPlayer.GetSEMan().GetHUDStatusEffects(_effects);
             for (int i = 0; i < _effects.Count; i++)
             {
                 var effect = _effects[i];
                 if (effect == null || effect.m_icon == null)
                     continue;
-
-                string time = Plugin.ShowTimer.Value ? effect.GetIconText() : null;
-                string label = LocalName(effect.m_name);
-                var tint = effect.m_flashIcon && flashOn ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white;
-                DrawSquare(shown, label, time, effect.m_icon, tint, _layoutDirty);
-                SlotAt(shown).Effect = effect;
+                _draw.Add(new DrawItem
+                {
+                    Name = LocalName(effect.m_name),
+                    Time = Plugin.ShowTimer.Value ? effect.GetIconText() : null,
+                    Icon = effect.m_icon,
+                    Tint = effect.m_flashIcon && flashOn ? new Color(1f, 0.45f, 0.45f, 1f) : Color.white
+                });
                 ApplyFilter(effect.m_icon);
-                shown++;
             }
 
             if (Plugin.FillPreview.Value)
@@ -174,31 +111,122 @@ namespace CompactStatusSquares
                 for (int i = 0; i < count; i++)
                 {
                     int sample = i % PreviewNames.Length;
-                    DrawSquare(shown, PreviewNames[sample], PreviewTimes[sample], _pixel, PreviewTints[sample], _layoutDirty);
-                    shown++;
+                    _draw.Add(new DrawItem
+                    {
+                        Name = PreviewNames[sample],
+                        Time = PreviewTimes[sample],
+                        Icon = null,
+                        Tint = PreviewTints[sample]
+                    });
                 }
             }
 
-            if (shown != _lastShown || _layoutDirty)
-            {
-                for (int i = shown; i < _slots.Count; i++)
-                {
-                    if (_slots[i].Root.gameObject.activeSelf)
-                        _slots[i].Root.gameObject.SetActive(false);
-                    if (_hover == _slots[i])
-                        SetHover(null);
-                }
-                _lastShown = shown;
-            }
-
-            if (shown > 0 && !_loggedDraw)
+            if (_draw.Count == 0)
+                LogSkip(_effects.Count == 0
+                    ? "no HUD status effects on the player"
+                    : _effects.Count + " HUD effect(s) had no icons");
+            else if (!_loggedDraw)
             {
                 _loggedDraw = true;
-                Plugin.Log.LogInfo("Drawing " + shown + " status icon" + (shown == 1 ? "" : "s") + ".");
+                _lastSkip = null;
+                Plugin.Log.LogInfo("Drawing " + _draw.Count + " status square(s) with OnGUI.");
+            }
+        }
+
+        string WhyHidden()
+        {
+            if (!Plugin.EnabledIcons.Value)
+                return "Enabled is false";
+            if (Player.m_localPlayer == null)
+                return "no local player yet";
+            if (Hud.instance == null)
+                return "Hud is not ready";
+            if (!Hud.instance.IsVisible())
+                return "vanilla HUD is hidden";
+            if (Player.m_localPlayer.IsDead())
+                return "player is dead";
+            return null;
+        }
+
+        void LogSkip(string reason)
+        {
+            if (_lastSkip == reason)
+                return;
+            _lastSkip = reason;
+            Plugin.Log.LogInfo("Status squares not drawn: " + reason + ".");
+        }
+
+        void OnGUI()
+        {
+            if (_draw.Count == 0)
+                return;
+
+            EnsureStyles();
+            _hover = null;
+            Vector2 mouse = Event.current.mousePosition;
+            var nameSide = Plugin.ShowName.Value;
+
+            for (int i = 0; i < _draw.Count; i++)
+            {
+                int col = i % _columns;
+                int row = i / _columns;
+                float x = _right
+                    ? Screen.width - _size + Plugin.OffsetX.Value - col * _stepX
+                    : Plugin.OffsetX.Value + col * _stepX;
+                float y = _top
+                    ? -Plugin.OffsetY.Value + row * _stepY
+                    : Screen.height - _size + Plugin.OffsetY.Value - row * _stepY;
+                var box = new Rect(x, y, _size, _size);
+                var item = _draw[i];
+
+                GUI.color = _backColor;
+                GUI.DrawTexture(box, _pixel);
+                GUI.color = item.Tint;
+                if (item.Icon != null)
+                    DrawSprite(Inset(box, 3f), item.Icon);
+                else
+                    GUI.DrawTexture(Inset(box, 3f), _pixel);
+                GUI.color = Color.white;
+
+                if (Plugin.ShowTimer.Value && !string.IsNullOrEmpty(item.Time))
+                    GUI.Label(new Rect(box.x, box.yMax - 16f, box.width, 16f), item.Time, _label);
+
+                if (nameSide != StatusNameSide.Off && !string.IsNullOrEmpty(item.Name))
+                    GUI.Label(NameRect(box, nameSide), item.Name, _label);
+
+                if (box.Contains(mouse))
+                    _hover = string.IsNullOrEmpty(item.Time) ? item.Name : item.Name + "   " + item.Time;
             }
 
-            _layoutDirty = false;
-            UpdateTip();
+            if (!string.IsNullOrEmpty(_hover))
+            {
+                var size = _tipStyle.CalcSize(new GUIContent(_hover));
+                var tip = new Rect(mouse.x - size.x - 12f, mouse.y + 16f, size.x + 16f, size.y + 8f);
+                GUI.color = new Color(0.05f, 0.04f, 0.035f, 0.92f);
+                GUI.DrawTexture(tip, _pixel);
+                GUI.color = Color.white;
+                GUI.Label(new Rect(tip.x + 8f, tip.y, tip.width - 8f, tip.height), _hover, _tipStyle);
+            }
+        }
+
+        void EnsureStyles()
+        {
+            if (_label != null)
+                return;
+            _label = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.LowerCenter,
+                fontSize = Mathf.Clamp(Mathf.RoundToInt(12f * Plugin.TextScale.Value), 8, 36),
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Overflow
+            };
+            _label.normal.textColor = Color.white;
+            _tipStyle = new GUIStyle(_label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontSize = Mathf.Clamp(Mathf.RoundToInt(14f * Plugin.TextScale.Value), 10, 40)
+            };
+            _tipStyle.normal.textColor = new Color(0.95f, 0.9f, 0.78f, 1f);
         }
 
         void RefreshLayoutCache()
@@ -207,68 +235,46 @@ namespace CompactStatusSquares
             _columns = Mathf.Clamp(Plugin.Columns.Value, 1, 16);
             float gap = Mathf.Max(0f, Plugin.Spacing.Value);
             _stepX = _size + gap;
-            _stepY = _stepX + NamePitch();
-            _corner = Plugin.Corner.Value;
-            _right = _corner == ScreenCorner.TopRight || _corner == ScreenCorner.BottomRight;
-            _top = _corner == ScreenCorner.TopRight || _corner == ScreenCorner.TopLeft;
+            var side = Plugin.ShowName.Value;
+            float namePitch = 0f;
+            if (side == StatusNameSide.Top || side == StatusNameSide.Bottom)
+                namePitch = Mathf.Max(10f, 14f * Plugin.TextScale.Value) + Mathf.Max(0f, Plugin.NameGap.Value);
+            _stepY = _stepX + namePitch;
+            var corner = Plugin.Corner.Value;
+            _right = corner == ScreenCorner.TopRight || corner == ScreenCorner.BottomRight;
+            _top = corner == ScreenCorner.TopRight || corner == ScreenCorner.TopLeft;
             _backColor = Plugin.Background.Value;
-            _cachedFont = CurrentFont();
-            _timerFontSize = ScaledFont(12f);
-            _nameFontSize = ScaledFont(12f);
-            _tipFontSize = ScaledFont(16f);
-            float outline = Mathf.Clamp(Plugin.TextScale.Value, 0.75f, 2f);
-            _timerOutline = new Vector2(outline, -outline);
-            _nameOutline = _timerOutline;
-            _timerHeight = Mathf.Max(10f, 14f * Plugin.TextScale.Value);
-            _tip.font = _cachedFont;
-            _tip.fontSize = _tipFontSize;
-            _configDirty = false;
-            _layoutDirty = true;
         }
 
-        void DrawSquare(int index, string label, string time, Sprite icon, Color tint, bool force)
+        static Rect NameRect(Rect box, StatusNameSide side)
         {
-            var slot = SlotAt(index);
-            bool reveal = !slot.Root.gameObject.activeSelf;
-            if (reveal)
-                force = true;
-
-            slot.Effect = null;
-            if (force)
+            float gap = Mathf.Max(0f, Plugin.NameGap.Value);
+            switch (side)
             {
-                int col = index % _columns;
-                int row = index / _columns;
-                float x = Plugin.OffsetX.Value + (_right ? -col * _stepX : col * _stepX);
-                float y = Plugin.OffsetY.Value + (_top ? -row * _stepY : row * _stepY);
-                Place(slot.Root, _corner, x, y, _size);
-                slot.Back.color = _backColor;
-                ApplyLabel(slot, true);
-                bool named = Plugin.ShowName.Value != StatusNameSide.Off;
-                if (slot.Name.gameObject.activeSelf != named)
-                    slot.Name.gameObject.SetActive(named);
-                if (named)
-                {
-                    PlaceName(slot.Name.rectTransform, Plugin.ShowName.Value);
-                    ApplyLabel(slot, false);
-                }
+                case StatusNameSide.Left:
+                    return new Rect(box.x - 260f - gap, box.y, 260f, box.height);
+                case StatusNameSide.Right:
+                    return new Rect(box.xMax + gap, box.y, 260f, box.height);
+                case StatusNameSide.Top:
+                    return new Rect(box.x - 80f, box.y - 18f - gap, box.width + 160f, 18f);
+                default:
+                    return new Rect(box.x - 80f, box.yMax + gap, box.width + 160f, 18f);
             }
+        }
 
-            if (reveal)
-                slot.Root.gameObject.SetActive(true);
+        static Rect Inset(Rect box, float pad)
+        {
+            return new Rect(box.x + pad, box.y + pad, box.width - pad * 2f, box.height - pad * 2f);
+        }
 
-            if (slot.Icon.sprite != icon)
-                slot.Icon.sprite = icon;
-            if (slot.Icon.color != tint)
-                slot.Icon.color = tint;
-
-            bool timer = Plugin.ShowTimer.Value && !string.IsNullOrEmpty(time);
-            if (slot.Timer.gameObject.activeSelf != timer)
-                slot.Timer.gameObject.SetActive(timer);
-            if (timer && slot.Timer.text != time)
-                slot.Timer.text = time;
-
-            if (slot.Name.text != label)
-                slot.Name.text = label;
+        static void DrawSprite(Rect box, Sprite sprite)
+        {
+            var tex = sprite.texture;
+            if (tex == null)
+                return;
+            var r = sprite.textureRect;
+            var uv = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
+            GUI.DrawTextureWithTexCoords(box, tex, uv);
         }
 
         void ApplyVanillaRoot()
@@ -297,178 +303,7 @@ namespace CompactStatusSquares
             }
         }
 
-        void UpdateTip()
-        {
-            if (_hover == null || !_hover.Root.gameObject.activeSelf || (_hover.Effect == null && string.IsNullOrEmpty(_hover.Name.text)))
-            {
-                if (_tipRoot.gameObject.activeSelf)
-                    _tipRoot.gameObject.SetActive(false);
-                return;
-            }
-
-            var effect = _hover.Effect;
-            string text;
-            if (effect == null)
-            {
-                text = _hover.Name.text;
-            }
-            else
-            {
-                string name = LocalName(effect.m_name);
-                string time = effect.GetIconText();
-                text = string.IsNullOrEmpty(time) ? name : name + "   " + time;
-            }
-
-            if (!_tipRoot.gameObject.activeSelf)
-                _tipRoot.gameObject.SetActive(true);
-            if (_tipText != text)
-            {
-                _tipText = text;
-                _tip.text = text;
-            }
-            PlaceTip();
-        }
-
-        void PlaceTip()
-        {
-            var slot = _hover.Root;
-            _tipRoot.anchorMin = slot.anchorMin;
-            _tipRoot.anchorMax = slot.anchorMax;
-            _tipRoot.pivot = new Vector2(_right ? 1f : 0f, slot.pivot.y);
-            _tipRoot.anchoredPosition = slot.anchoredPosition + new Vector2(_right ? -(_size + 8f) : _size + 8f, 0f);
-            _tipRoot.sizeDelta = new Vector2(Mathf.Clamp(_tip.text.Length * 9f + 20f, 80f, 460f), 28f);
-        }
-
-        public void SetHover(Slot slot)
-        {
-            if (_hover == slot)
-                return;
-            _hover = slot;
-            _tipText = null;
-        }
-
-        public void ClearHover(Slot slot)
-        {
-            if (_hover == slot)
-            {
-                _hover = null;
-                _tipText = null;
-            }
-        }
-
-        Slot SlotAt(int index)
-        {
-            while (_slots.Count <= index)
-                _slots.Add(CreateSlot());
-            return _slots[index];
-        }
-
-        Slot CreateSlot()
-        {
-            var go = new GameObject("square");
-            go.SetActive(false);
-            go.transform.SetParent(_root, false);
-            var rect = go.AddComponent<RectTransform>();
-            var back = go.AddComponent<Image>();
-            back.sprite = _pixel;
-            back.type = Image.Type.Simple;
-            back.color = Plugin.Background.Value;
-
-            var iconGo = new GameObject("icon");
-            iconGo.transform.SetParent(go.transform, false);
-            var iconRect = iconGo.AddComponent<RectTransform>();
-            iconRect.anchorMin = Vector2.zero;
-            iconRect.anchorMax = Vector2.one;
-            iconRect.offsetMin = new Vector2(3f, 3f);
-            iconRect.offsetMax = new Vector2(-3f, -3f);
-            var icon = iconGo.AddComponent<Image>();
-            icon.preserveAspect = true;
-            icon.raycastTarget = false;
-
-            var timerGo = new GameObject("time");
-            timerGo.transform.SetParent(go.transform, false);
-            var timerRect = timerGo.AddComponent<RectTransform>();
-            timerRect.anchorMin = new Vector2(0f, 0f);
-            timerRect.anchorMax = new Vector2(1f, 0f);
-            timerRect.pivot = new Vector2(0.5f, 0f);
-            timerRect.sizeDelta = new Vector2(-2f, 14f);
-            timerRect.anchoredPosition = new Vector2(0f, 1f);
-            var timer = timerGo.AddComponent<Text>();
-            timer.font = CurrentFont();
-            timer.fontSize = 12;
-            timer.alignment = TextAnchor.LowerCenter;
-            timer.color = Color.white;
-            timer.horizontalOverflow = HorizontalWrapMode.Overflow;
-            timer.verticalOverflow = VerticalWrapMode.Overflow;
-            timer.raycastTarget = false;
-            timer.resizeTextForBestFit = false;
-            var outline = timerGo.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.95f);
-            outline.effectDistance = new Vector2(1f, -1f);
-
-            var nameGo = new GameObject("name");
-            nameGo.transform.SetParent(go.transform, false);
-            var nameRect = nameGo.AddComponent<RectTransform>();
-            nameRect.anchorMin = new Vector2(1f, 0.5f);
-            nameRect.anchorMax = new Vector2(1f, 0.5f);
-            nameRect.pivot = new Vector2(0f, 0.5f);
-            nameRect.sizeDelta = new Vector2(220f, 24f);
-            nameRect.anchoredPosition = new Vector2(6f, 0f);
-            var name = nameGo.AddComponent<Text>();
-            name.font = CurrentFont();
-            name.fontSize = 12;
-            name.alignment = TextAnchor.MiddleLeft;
-            name.color = Color.white;
-            name.horizontalOverflow = HorizontalWrapMode.Overflow;
-            name.verticalOverflow = VerticalWrapMode.Overflow;
-            name.raycastTarget = false;
-            name.resizeTextForBestFit = false;
-            var nameOutline = nameGo.AddComponent<Outline>();
-            nameOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
-            nameOutline.effectDistance = new Vector2(1f, -1f);
-            nameGo.SetActive(false);
-
-            var slot = go.AddComponent<Slot>();
-            slot.Hud = this;
-            slot.Root = rect;
-            slot.Back = back;
-            slot.Icon = icon;
-            slot.Timer = timer;
-            slot.Name = name;
-            slot.TimerOutline = outline;
-            slot.NameOutline = nameOutline;
-            return slot;
-        }
-
-        RectTransform MakeTip()
-        {
-            var go = new GameObject("tip");
-            go.transform.SetParent(_root, false);
-            var rect = go.AddComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(160f, 28f);
-            var back = go.AddComponent<Image>();
-            back.sprite = _pixel;
-            back.color = new Color(0.05f, 0.04f, 0.035f, 0.92f);
-            back.raycastTarget = false;
-
-            var textGo = new GameObject("label");
-            textGo.transform.SetParent(go.transform, false);
-            var textRect = textGo.AddComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(8f, 2f);
-            textRect.offsetMax = new Vector2(-8f, -2f);
-            _tip = textGo.AddComponent<Text>();
-            _tip.font = CurrentFont();
-            _tip.fontSize = ScaledFont(16f);
-            _tip.alignment = TextAnchor.MiddleLeft;
-            _tip.color = new Color(0.95f, 0.9f, 0.78f, 1f);
-            _tip.raycastTarget = false;
-            go.SetActive(false);
-            return rect;
-        }
-
-        void ApplyFilter(Sprite sprite)
+        static void ApplyFilter(Sprite sprite)
         {
             if (!Plugin.CrispPixels.Value || sprite == null || sprite.texture == null)
                 return;
@@ -498,173 +333,6 @@ namespace CompactStatusSquares
             string value = Localization.instance != null ? Localization.instance.Localize(key) : key;
             Localized[key] = value;
             return value;
-        }
-
-        static void PlaceName(RectTransform rect, StatusNameSide side)
-        {
-            float gap = Mathf.Max(0f, Plugin.NameGap.Value);
-            float tall = Mathf.Max(16f, 20f * Plugin.TextScale.Value);
-            var text = rect.GetComponent<Text>();
-            if (side == StatusNameSide.Top || side == StatusNameSide.Bottom)
-            {
-                bool top = side == StatusNameSide.Top;
-                float line = NameLine();
-                rect.anchorMin = top ? new Vector2(0.5f, 1f) : new Vector2(0.5f, 0f);
-                rect.anchorMax = rect.anchorMin;
-                rect.pivot = top ? new Vector2(0.5f, 0f) : new Vector2(0.5f, 1f);
-                rect.sizeDelta = new Vector2(260f, line);
-                rect.anchoredPosition = new Vector2(0f, top ? gap : -gap);
-                if (text != null)
-                    text.alignment = top ? TextAnchor.LowerCenter : TextAnchor.UpperCenter;
-                return;
-            }
-
-            bool left = side == StatusNameSide.Left;
-            rect.anchorMin = left ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
-            rect.anchorMax = rect.anchorMin;
-            rect.pivot = left ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
-            rect.sizeDelta = new Vector2(260f, tall);
-            rect.anchoredPosition = new Vector2(left ? -gap : gap, 0f);
-            if (text != null)
-                text.alignment = left ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
-        }
-
-        void ApplyLabel(Slot slot, bool timer)
-        {
-            if (timer)
-            {
-                slot.Timer.font = _cachedFont;
-                slot.Timer.fontSize = _timerFontSize;
-                slot.Timer.rectTransform.sizeDelta = new Vector2(-2f, _timerHeight);
-                slot.TimerOutline.effectDistance = _timerOutline;
-                return;
-            }
-
-            slot.Name.font = _cachedFont;
-            slot.Name.fontSize = _nameFontSize;
-            slot.NameOutline.effectDistance = _nameOutline;
-        }
-
-        static float NameLine()
-        {
-            return Mathf.Max(10f, ScaledFont(12f) + 2f);
-        }
-
-        static float NamePitch()
-        {
-            var side = Plugin.ShowName.Value;
-            if (side != StatusNameSide.Top && side != StatusNameSide.Bottom)
-                return 0f;
-            return NameLine() + Mathf.Max(0f, Plugin.NameGap.Value);
-        }
-
-        static int ScaledFont(float baseSize)
-        {
-            return Mathf.Clamp(Mathf.RoundToInt(baseSize * Plugin.TextScale.Value), 6, 72);
-        }
-
-        static Font CurrentFont()
-        {
-            if (Plugin.UseVanillaFont.Value)
-            {
-                Font norse = Norse();
-                if (norse != null)
-                    return norse;
-            }
-            return _font;
-        }
-
-        static Font Norse()
-        {
-            if (_norse != null)
-                return _norse;
-            var fonts = Resources.FindObjectsOfTypeAll<Font>();
-            for (int i = 0; i < fonts.Length; i++)
-            {
-                var font = fonts[i];
-                if (font == null)
-                    continue;
-                if (font.name.IndexOf("Norsebold", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    || font.name.Equals("Norse", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    _norse = font;
-                    return _norse;
-                }
-            }
-            for (int i = 0; i < fonts.Length; i++)
-            {
-                var font = fonts[i];
-                if (font != null && font.name.IndexOf("Norse", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    _norse = font;
-                    break;
-                }
-            }
-            return _norse;
-        }
-
-        static void Place(RectTransform rect, ScreenCorner corner, float x, float y, float size)
-        {
-            Vector2 anchor;
-            switch (corner)
-            {
-                case ScreenCorner.TopLeft: anchor = new Vector2(0f, 1f); break;
-                case ScreenCorner.BottomLeft: anchor = new Vector2(0f, 0f); break;
-                case ScreenCorner.BottomRight: anchor = new Vector2(1f, 0f); break;
-                default: anchor = new Vector2(1f, 1f); break;
-            }
-            rect.anchorMin = anchor;
-            rect.anchorMax = anchor;
-            rect.pivot = anchor;
-            rect.sizeDelta = new Vector2(size, size);
-            rect.anchoredPosition = new Vector2(x, y);
-        }
-
-        static RectTransform Stretch(Transform parent, string name)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            var rect = go.AddComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            return rect;
-        }
-
-        static Sprite Pixel()
-        {
-            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-            tex.SetPixel(0, 0, Color.white);
-            tex.Apply();
-            tex.hideFlags = HideFlags.HideAndDontSave;
-            var sprite = Sprite.Create(tex, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
-            sprite.hideFlags = HideFlags.HideAndDontSave;
-            return sprite;
-        }
-
-        public class Slot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
-        {
-            public StatusSquaresHud Hud;
-            public RectTransform Root;
-            public Image Back;
-            public Image Icon;
-            public Text Timer;
-            public Text Name;
-            public Outline TimerOutline;
-            public Outline NameOutline;
-            public StatusEffect Effect;
-
-            public void OnPointerEnter(PointerEventData eventData)
-            {
-                Hud.SetHover(this);
-            }
-
-            public void OnPointerExit(PointerEventData eventData)
-            {
-                if (Hud != null)
-                    Hud.ClearHover(this);
-            }
         }
     }
 }
