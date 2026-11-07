@@ -1,32 +1,25 @@
-# Compact Status Squares — 0.1.11
+# Compact Status Squares — 0.1.12
 
 ## Goal
-- Confirm the mod still matches latest Valheim (1.0.21).
-- Reduce per-frame HUD work for better FPS / less lag.
+- Stop new status squares from flashing at a default screen position before they appear in the compact list.
 
 ## Status
 - Completed (source + Release build). Not committed.
 
-## Compatibility
-- Local game: `D:\SteamLibrary\steamapps\common\Valheim` (assembly dated 2026-10-28, patch 1.0.21).
-- Public latest is also 1.0.21.
-- Still present: `Hud.UpdateStatusEffects(List<StatusEffect>)`, `Hud.m_statusEffectListRoot`, `Hud.IsVisible()`, `SEMan.GetHUDStatusEffects`, `StatusEffect.GetIconText` / `m_icon` / `m_flashIcon`.
-- Harmony prefix with no extra args still intercepts the list-taking vanilla method.
+## Cause
+- New slots were created active at Unity's default RectTransform.
+- `Place()` only ran when `_layoutDirty` was true, so a newly applied effect could sit at the default overlay position for up to ~0.2s (next flash tick) before jumping into the list.
 
 ## Changes
-- Version 0.1.10 → 0.1.11.
-- Cache layout, fonts, outline sizes; only rebuild square geometry when config or slot set changes.
-- Cache localized names; apply Point filter once per texture.
-- Skip canvas work while HUD is hidden; skip `GetIconText` when timers are off (hover still reads it).
-- SeneaL leftover panel: cache the box GameObject and rescan at most every 2s.
-- Patch only `VanillaStatusListGuard` instead of the whole assembly.
+- Version 0.1.11 → 0.1.12.
+- Create slots inactive; position them, then enable.
 
 ## Commands
 - `dotnet build -c Release -p:SkipGameCopy=true` — succeeded, 0 warnings, 0 errors.
 
 ## Output
-- DLL: `D:\AI-Agent-Projects\cjaycraft\Cjayride.CompactStatusSquares\bin\Release\net480\CompactStatusSquares.dll` (0.1.11)
-- Thunderstore zip: `D:\AI-Agent-Projects\cjaycraft\Cjayride.CompactStatusSquares\dist\Cjayride.CompactStatusSquares-0.1.11.zip`
+- DLL: `D:\AI-Agent-Projects\cjaycraft\Cjayride.CompactStatusSquares\bin\Release\net480\CompactStatusSquares.dll` (0.1.12)
+- Thunderstore zip: `D:\AI-Agent-Projects\cjaycraft\Cjayride.CompactStatusSquares\dist\Cjayride.CompactStatusSquares-0.1.12.zip`
 
 ## Remaining
-- In-game FPS comparison was not run (no live session).
+- In-game confirmation: apply a new status and confirm no flash at cursor/center.

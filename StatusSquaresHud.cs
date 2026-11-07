@@ -229,11 +229,9 @@ namespace CompactStatusSquares
         void DrawSquare(int index, string label, string time, Sprite icon, Color tint, bool force)
         {
             var slot = SlotAt(index);
-            if (!slot.Root.gameObject.activeSelf)
-            {
-                slot.Root.gameObject.SetActive(true);
+            bool reveal = !slot.Root.gameObject.activeSelf;
+            if (reveal)
                 force = true;
-            }
 
             slot.Effect = null;
             if (force)
@@ -254,6 +252,9 @@ namespace CompactStatusSquares
                     ApplyLabel(slot, false);
                 }
             }
+
+            if (reveal)
+                slot.Root.gameObject.SetActive(true);
 
             if (slot.Icon.sprite != icon)
                 slot.Icon.sprite = icon;
@@ -365,6 +366,7 @@ namespace CompactStatusSquares
         Slot CreateSlot()
         {
             var go = new GameObject("square");
+            go.SetActive(false);
             go.transform.SetParent(_root, false);
             var rect = go.AddComponent<RectTransform>();
             var back = go.AddComponent<Image>();

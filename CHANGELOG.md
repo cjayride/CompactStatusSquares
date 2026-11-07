@@ -1,3 +1,7 @@
+# 0.1.12
+
+- New status squares stay hidden until they are placed in the list, so they no longer flash at a default screen position when an effect is applied.
+
 # 0.1.11
 
 - Re-checked against Valheim 1.0.21 (`Hud.UpdateStatusEffects`, `SEMan.GetHUDStatusEffects`, `StatusEffect.GetIconText`).
