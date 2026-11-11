@@ -145,6 +145,12 @@ namespace CompactStatusSquares
                 return "vanilla HUD is hidden";
             if (Player.m_localPlayer.IsDead())
                 return "player is dead";
+            // 0.2.2: these squares are drawn with OnGUI, and Unity composites IMGUI AFTER every
+            // canvas pass - no canvas sorting order, nested canvas, or raised root can ever paint
+            // over them. That is why the custom loading screen lost to the squares during portal
+            // trips. The only fix is not drawing them while a trip hides the HUD.
+            if (Player.m_localPlayer.IsTeleporting())
+                return "player is teleporting";
             return null;
         }
 

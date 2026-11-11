@@ -1,0 +1,9 @@
+﻿{
+  "name": "CompactStatusSquares",
+  "version_number": "0.2.2",
+  "website_url": "https://discord.gg/cjayride",
+  "description": "Small square status-effect icons using Valheim's own art. Position them yourself. Works without SeneaL UI; blocks its status pills when present.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2360"
+  ]
+}
