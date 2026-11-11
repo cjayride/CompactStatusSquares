@@ -1,6 +1,11 @@
-﻿# 0.2.2
+# 0.2.3
+
+- Packaging fix: `CHANGELOG.md` and `manifest.json` are saved without a UTF-8 BOM (Thunderstore's validator rejects BOM-prefixed files). No behavior change - v0.2.2's portal-trip fix is included.
+
+# 0.2.2
 
 - The squares now hide themselves while the player is travelling through a portal. They are drawn with OnGUI, and Unity composites IMGUI after every UI canvas pass, so no canvas setting could ever put a custom loading screen over them - not drawing them during the trip is the fix. Status effects keep running; the squares return the moment you arrive.
+
 # 0.2.1
 
 - Default `IconSize` is now 50 (fresh configs only; existing `IconSize` in your cfg file is unchanged).

@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -13,7 +13,7 @@ namespace CompactStatusSquares
     {
         public const string Guid = "cjayride.CompactStatusSquares";
         public const string Name = "Compact Status Squares";
-        public const string Version = "0.2.2";
+        public const string Version = "0.2.3";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log;
